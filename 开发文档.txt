@@ -1,0 +1,390 @@
+# 脑卒中疾病管理医疗系统开发文档
+
+**版本**：v3.0  
+**日期**：2026年5月19日  
+**状态**：深度评审修订稿  
+**核心设计原则**：业务收敛 · 稳定优先 · 外复杂内保守 · 医疗合规 · 务实落地
+
+---
+
+## 1. 项目概述
+
+### 1.1 项目背景与核心痛点
+脑卒中救治是高度时间依赖的多角色协同过程。现有医院信息系统普遍存在院前信息断裂、急诊绿道协同靠人工吆喝、评估决策依赖个人经验、质控数据滞后等痛点。
+
+本系统定位为 **“卒中全流程协同与质控平台”** ，目标不是包罗万象，而是聚焦于：
+- 将绿道关键动作（到院、影像、决策、溶栓）标准化、可追踪
+- 辅助临床人员快速完成评估与禁忌核对，但不替代医生决策
+- 提供实时质控及事后分析，推动持续改进
+
+### 1.2 建设目标与核心指标
+- **临床目标**：系统上线后，DNT中位数相对基线降低15%以上，且提供实时超时预警。
+- **工程目标**：
+  - 绿道核心链路可用性 ≥99.9%（不要求四个9，医院可接受的停机窗口存在）。
+  - 关键操作（评估提交、决策请求）P95延迟 ≤500ms。
+  - 支持护士PAD端离线采集生命体征和NIHSS评分。
+- **合规目标**：满足等保2.0三级，支持国密，全操作留痕可审计。
+
+### 1.3 适用范围
+- **医疗场景**：综合卒中中心、初级卒中中心，支持多院区主索引匹配。
+- **患者类型**：缺血性卒中、出血性卒中、TIA。
+- **用户**：急诊/神内/神外医生、护士、康复治疗师、质控管理员、患者（随访端）。
+
+### 1.4 术语与缩略语
+| 术语 | 说明 |
+|------|------|
+| DNT | Door-to-Needle 入院至溶栓开始 |
+| OTT | Onset-to-Treatment 发病至治疗 |
+| ASPECTS | Alberta卒中项目早期CT评分 |
+| CDS | 临床决策支持 |
+| MPI | 患者主索引 |
+| ABAC | 基于属性的访问控制 |
+| ODS/DWD | 数据仓库分层 |
+
+---
+
+## 2. 系统总体架构
+
+### 2.1 架构设计原则
+- **业务收敛优先于技术拆分**：不追求纯微服务，将强一致性业务聚合，减少分布式事务。
+- **事件用于解耦，而非全量广播**：区分内部事件、集成事件和通知，仅跨领域关键状态变更使用异步事件。
+- **稳定压倒新颖**：核心链路（绿道）使用简单、可验证的实现，避免过度引入重量级框架。
+- **离线与异常优先**：设计伊始考虑网络中断、设备老旧、人工补救等现实。
+
+### 2.2 服务划分（收敛后）
+
+为避免过度微服务导致的分布式事务爆炸与运维灾难，按业务紧密度收敛为五个核心服务：
+
+| 服务 | 职责 | 数据自治 | 拆分理由 |
+|------|------|----------|----------|
+| **core-clinical** | 患者主索引、就诊、急诊绿道状态机、所有量表评定（NIHSS/mRS等）、溶栓/取栓记录 | 患者表、就诊表、绿道表、评估表 | 强一致性需求，绿道流程与评估密不可分 |
+| **rehab-followup** | 康复评定与计划、随访任务、二级预防、患者端数据接收 | 康复表、随访表、宣教记录 | 院后业务低实时性，独立部署升级不影响绿道 |
+| **integration** | 对接HIS/LIS/PACS/区域平台，标准化外部数据，提供FHIR网关 | 集成日志、MPI映射表 | 屏蔽外部复杂性，隔离变化 |
+| **analytics** | BI报表、质控指标计算、科研数据导出 | 数仓查询，只读 | 防止分析负载冲击业务库 |
+| **infrastructure** | 用户与权限、审计、通知推送、CDS规则引擎 | 用户表、审计表、规则配置 | 通用技术能力下沉 |
+
+**内部调用原则**：
+- `core-clinical` 和 `rehab-followup` 之间通过事件异步协同（如出院触发随访计划生成）。
+- 所有服务禁止直接访问其他服务的数据库，只能通过API或事件。
+- `integration` 服务主动向 `core-clinical` 推送外部数据，而非绿道服务轮询。
+
+### 2.3 事件驱动架构（克制使用）
+
+仅允许以下两类消息进入 RocketMQ：
+
+- **集成事件 (Integration Event)**：跨服务、长流程、最终一致性业务，如：
+  - `PatientArrived` (绿道启动 → 通知康复/随访可能的历史数据查询)
+  - `EncounterCompleted` (出院 → 生成随访计划)
+  - `ImagingStudyReady` (integration → core-clinical)
+- **通知事件 (Notification Event)**：用于多端协同告警，如：
+  - `DNTTimeoutWarning` → 推送至医生PAD/工作站/短信网关
+  - `ThrombolysisReady` → 通知相关人员
+
+**禁止**将以下内容作为事件广播：
+- 服务内部的状态变更（如评估评分更新），这些通过数据库事务内完成。
+- 频繁的查询级操作。
+- 审计日志（审计独立旁路写，不进核心MQ）。
+
+所有集成事件遵循简单的JSON结构，携带`encounterId`、`patientId`、`timestamp`、`traceId`，不强制使用CloudEvents等复杂封装。
+
+### 2.4 核心交互示例（绿道评估与溶栓决策）
+
+1. 医生提交NIHSS评估 → `core-clinical` 同步校验、存储，并更新绿道状态为 `CT_DONE`。
+2. 事务提交后，`core-clinical` 发布 `AssessmentCompleted` 集成事件（仅用于通知其他域，如科研数据采集）。
+3. 同时，`core-clinical` 内部直接调用 `CDS` 服务提供的 **同步API** 进行禁忌症检查（因决策结果属于绿道强一致流程，不应走异步）。
+4. CDS返回禁忌结论，`core-clinical` 立即将状态变更为 `THROMBOLYSIS_READY` 并返回前端。
+5. 若超时未决策，通过本地定时任务检查并发送通知事件。
+
+这种设计保证核心路径“请求-响应”式闭环，避免异步带来的复杂性和延迟。
+
+### 2.5 技术选型务实化
+
+| 层次 | 技术组件 | 选型理由及限制 |
+|------|----------|----------------|
+| 后端框架 | Spring Boot 2.7 | 团队熟悉，生态成熟 |
+| 前端 | Vue3 + Element Plus (Web)； 原生Android (PAD) | PAD要求离线能力，不使用跨平台框架 |
+| 网关 | Nginx + Spring Cloud Gateway | 性能足够，减少Kong的维护成本 |
+| 事件总线 | RocketMQ | 仅用于集成事件，关闭自动创建Topic |
+| 数据库 | MySQL 8.0 (InnoDB) | 单库单服务，避免分布式事务 |
+| 缓存 | Redis Sentinel | 仅用于缓存非关键数据，不用作锁 |
+| 规则引擎 (CDS) | 核心规则硬编码于core-clinical的Service层；非核心提醒使用简易规则表 | 避免Drools的GC和热加载风险 |
+| 搜索引擎 | Elasticsearch | 仅索引脱敏摘要，权限回源库校验 |
+| 离线存储 | PAD端SQLite | 增量同步，数据append，不覆盖 |
+| 可观测性 | SkyWalking + Prometheus + Grafana | 重点监控业务延迟，非基础设施泛指标 |
+| 加密 | 国密SM2/SM4 (通过硬件密码机) | 等保三级要求 |
+
+---
+
+## 3. 功能模块详细设计
+
+### 3.1 患者主索引与就诊管理 (core-clinical)
+
+- **统一MPI**：通过integration服务匹配身份证号、院内ID、区域健康卡号，建立映射。匹配规则可配置，人工确认冲突。
+- **患者360视图**：聚合基本信息、过敏史、既往就诊摘要、卒中危险因素标签（房颤、高血压等），标签自动计算。
+- **就诊事件**：记录到院方式（120/自行来院）、发病时间、最后正常时间。
+
+### 3.2 急诊绿道核心引擎 (core-clinical)
+
+#### 3.2.1 增强状态机（含异常路径）
+
+状态定义充分考虑真实医院中的干扰因素：
+
+```text
+WAITING_TRIAGE    // 等待分诊
+TRIAGING          // 分诊中
+CT_ORDERED        // 已开CT申请
+CT_IN_PROGRESS    // CT扫描中
+CT_COMPLETED      // CT影像可获取
+CT_FAILED         // CT设备故障或患者无法配合
+CT_REPEAT_REQUIRED // 影像质量差需重扫
+AWAITING_DECISION // 等待溶栓/取栓决策
+THROMBOLYSIS_READY // 决策通过
+THROMBOLYSIS_IN_PROGRESS // 溶栓执行中
+THROMBOLYSIS_COMPLETED
+TREATMENT_ABORTED  // 治疗中止（家属拒绝、抢救插管等）
+TRANSFERRED        // 转院或转入其他科室
+COMPLETED          // 绿道正常结束
+```
+
+**关键约束**：
+- 每个状态定义允许的操作角色和时间阈值。
+- 允许从 `CT_COMPLETED` 回退到 `CT_ORDERED` 要求重扫，但必须记录原因。
+- 任何状态下允许人工标记 `TREATMENT_ABORTED` 或 `TRANSFERRED`，作为异常终止。
+- 状态变更通过DB事务内乐观锁保证，无Redis锁依赖。
+
+#### 3.2.2 流程操作与自动化
+1. **到院登记**：分诊台扫描身份证/健康卡，系统自动创建绿道记录，状态 `WAITING_TRIAGE`。
+2. **快速评估**：护士在PAD进行面臂言语评分，录入发病时间，状态 → `TRIAGING`。
+3. **启动CT**：医生点击“一键CT”，系统通过integration向PACS发送HL7，状态 → `CT_ORDERED`。若5分钟内未收到PACS确认，界面提示手动电话通知。
+4. **影像就绪**：integration接收PACS通知，调用 `core-clinical` API更新状态为 `CT_COMPLETED`。
+5. **量表评定**：医生查看影像，在PAD/工作站填写NIHSS、ASPECTS，提交后状态 → `AWAITING_DECISION`。
+6. **决策支持**：前端调用 `POST /clinical/decisions/check-thrombolysis`，core-clinical内部检查禁忌（INR>1.7、血小板<100、近期手术等），返回建议。不通过Drools，直接由服务层计算。
+7. **执行溶栓**：医生确认医嘱，状态 → `THROMBOLYSIS_IN_PROGRESS`，系统记录needle_time。护士可在床旁PAD录入生命体征。
+8. **结束**：溶栓完成或转入病房，状态 → `COMPLETED`。
+
+#### 3.2.3 时间监控与告警
+- 所有节点时间自动捕获（door_time, ct_order_time, ct_complete_time, decision_time, needle_time）。
+- 内置阈值：
+  - Door-to-CT完成 >25分钟：黄灯，工作站弹窗提醒。
+  - Door-to-Needle >45分钟：红灯，通知主任/质控员。
+- 超时告警通过 `infrastructure` 的通知模块发送站内信、PAD推送。
+
+### 3.3 量表评估模块 (core-clinical内)
+
+- NIHSS、mRS、ASPECTS、GCS等均以配置化表单呈现，版本化管理。
+- 所有评分操作记录完整审计，修改即生成新版本，不覆盖原始记录。
+- PAD端支持离线评分，数据暂存本地SQLite，联网后以追加方式上传，并标记离线产生，由医生在界面上人工确认合并。
+
+### 3.4 康复与随访 (rehab-followup)
+
+- 出院时`core-clinical`发布`EncounterCompleted`事件，`rehab-followup`自动生成随访计划模板（1、3、6、12个月），由护士确认。
+- 康复评定表电子化，支持离线填写。
+- 患者通过小程序上报血压、血糖、服药情况，数据汇总至随访记录。
+- 预警：血压连续3次超标或未服药，任务列表高亮并通知护士。
+
+### 3.5 集成与互联互通 (integration)
+
+- **HIS**：通过HL7 v2/WebService接收患者登记、医嘱。对常见乱码、缺失字段做清洗和默认值填补，异常记录日志并人工修正队列。
+- **LIS**：检验结果标准化，将院内项目码映射到LOINC。
+- **PACS**：DICOM Q/R拉取关键影像截图，FHIR结构化报告解析。
+- **区域平台**：以FHIR Bundle输出质控数据，术语绑定ICD-10、LOINC。
+- **异常兼容**：对外部系统不可用时提供降级方案（手动录入影像所见、手工导入检验数据）。
+
+### 3.6 数据驾驶舱 (analytics)
+
+- 从业务库通过CDC (Debezium) 抽取数据到ODS，聚合为DWD/DWS，存储于PostgreSQL。
+- 看板指标：DNT中位数/P95、溶栓率、血管内治疗率、NIHSS 24h改善率。
+- 严格禁止在OLTP库执行复杂分析查询。
+- 科研导出：按条件筛选、脱敏，审批后提供加密CSV。
+
+### 3.7 系统管理 (infrastructure)
+
+- **权限模型**：RBAC为基础，补充ABAC属性（科室、职称、值班状态、是否急救模式）。
+- **急救模式**：激活“CODE STROKE”后，临时授权急诊/神内所有医生访问当前绿道，30分钟自动失效。
+- **配置中心**：Nacos管理非医疗规则（如超时阈值、集成参数等），核心医疗规则硬编码或通过配置表，禁止热加载可能影响安全的规则。
+
+---
+
+## 4. 数据模型
+
+### 4.1 通用审计与合规字段
+所有业务表强制包含：
+```sql
+is_deleted       TINYINT DEFAULT 0,
+created_by       VARCHAR(64) NOT NULL,
+created_time     DATETIME NOT NULL,
+updated_by       VARCHAR(64),
+updated_time     DATETIME,
+version          INT DEFAULT 0,  -- 乐观锁
+trace_id         VARCHAR(64)     -- 请求链路ID
+```
+
+### 4.2 绿道核心表设计 (core-clinical)
+```sql
+CREATE TABLE stroke_greenway (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  patient_id BIGINT NOT NULL,
+  encounter_id BIGINT NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  onset_time DATETIME,
+  door_time DATETIME,
+  ct_order_time DATETIME,
+  ct_complete_time DATETIME,
+  decision_time DATETIME,
+  needle_time DATETIME,
+  thrombolysis_contraindications_json JSON,
+  abort_reason VARCHAR(128),
+  -- 审计字段
+  is_deleted TINYINT DEFAULT 0,
+  created_by VARCHAR(64),
+  created_time DATETIME,
+  updated_by VARCHAR(64),
+  updated_time DATETIME,
+  version INT DEFAULT 0,
+  trace_id VARCHAR(64),
+  INDEX idx_encounter (encounter_id),
+  INDEX idx_status (status)
+);
+```
+历史版本表`stroke_greenway_history`结构相同，每次更新通过应用层代码或数据库触发器写入。
+
+### 4.3 评估表设计要点
+- 主表存储评估类型、时间、操作者。
+- 明细表存储各条目分数，支持离线上传时标记来源。
+- 所有修改不更新原行，而是插入新行并递增版本号，原始行保留。
+
+### 4.4 OLTP与OLAP分离
+- 业务库仅保留当前活跃数据及规定期限内的归档。
+- 数仓通过Debezium + Kafka同步，分析查询指向数仓。
+- ES索引仅存储脱敏后的患者摘要，用于快速检索，详情回源库获取并鉴权。
+
+### 4.5 医学术语标准
+为确保数据互操作，关键字段绑定标准编码：
+- 诊断 → ICD-10
+- 手术/操作 → ICD-9-CM3
+- 检验项目 → LOINC
+- 药品 → 国家药品编码
+- 影像检查 → DICOM Procedure Code
+
+---
+
+## 5. 接口设计
+
+### 5.1 同步API规范
+- RESTful，JSON格式，版本 `/api/v3/`。
+- 强制Header：`Authorization`, `X-Trace-Id`。
+- 关键操作如状态变更使用POST，遵循语义。
+
+**核心API示例**：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v3/greenway/{encounterId}/state-change` | 绿道状态变更，需权限和状态机校验 |
+| POST | `/api/v3/assessments/nihss` | 提交NIHSS，支持离线标记 |
+| POST | `/api/v3/decisions/thrombolysis-check` | 溶栓禁忌同步检查 |
+| GET | `/api/v3/patients/{id}/timeline` | 患者时间轴 |
+
+### 5.2 异步事件主题（精简）
+
+| 主题 | 用途 | 生产方 | 消费方 |
+|------|------|--------|--------|
+| `patient.arrived` | 患者到院启动绿道 | core-clinical | rehab-followup (预加载历史), analytics |
+| `encounter.completed` | 出院/结束 | core-clinical | rehab-followup (生成随访计划) |
+| `imaging.ready` | 影像完成通知 | integration | core-clinical |
+| `dnt.timeout.warning` | DNT超时告警 | core-clinical | infrastructure (通知) |
+
+### 5.3 状态变更操作权限
+通过ABAC在服务层拦截，关键规则：
+- 状态`THROMBOLYSIS_READY` → `THROMBOLYSIS_IN_PROGRESS` 仅限神内主治及以上。
+- 异常终止操作需填写原因并记录审批编号。
+
+---
+
+## 6. 安全与合规体系
+
+### 6.1 认证与授权
+- SSO对接医院OAuth2.0/AD。
+- ABAC策略：核心属性为角色、科室、值班状态、急救模式。策略缓存在内存，定期刷新。
+- 急救模式动态提升权限，超时自动收回。
+
+### 6.2 加密与国密
+- 传输层TLS 1.3，对外接口支持国密套件。
+- 敏感数据（身份证、姓名、电话）使用SM4加密存储，密钥由密码机托管。
+
+### 6.3 审计留痕
+- 所有查看/修改患者数据操作记录到审计日志，包括操作前关键字段哈希。
+- 日志存储于只追加文件系统，防篡改。
+- 审计界面仅质控、合规角色可访问。
+
+### 6.4 数据脱敏与ES安全
+- ES仅存入脱敏患者摘要（姓名→张**），且不包含住址、联系方式。
+- 搜索时通过ES得到患者ID，再经权限过滤后从业务库取详情。
+
+---
+
+## 7. 部署与运维方案
+
+### 7.1 高可用设计
+- 应用部署于Kubernetes，`core-clinical`至少2副本。
+- 数据库MySQL主从半同步复制，故障自动切换。
+- RocketMQ 集群双主双从，保证消息不丢。
+- 不采用Redis锁，仅用于缓存，挂掉影响小。
+
+### 7.2 可观测性重点
+- **链路追踪**：SkyWalking，重点监控绿道API端到端耗时。
+- **业务指标**：Grafana面板直接展示DNT分布、CT超时率、NIHSS平均提交耗时、溶栓取消率、状态回退率。
+- **告警**：CT超时、DNT超限、API错误率>1%触发PagerDuty/钉钉通知。
+
+### 7.3 容灾降级与离线
+
+#### 降级开关（Nacos动态配置）：
+- **CDS不可用**：服务内部降级为静态检查（仅INR/时间窗），并提示医生人工复核。
+- **PACS延迟**：允许医生在看到CT报告后手动确认影像就绪，跳过自动节点。
+- **MQ故障**：core-clinical与rehab-followup间的非紧急事件可延迟，绿道内部流程不受影响。
+
+#### 离线方案（PAD）：
+- 本地SQLite存储评估表单模板和待提交数据。
+- 网络断开时护士正常操作，数据保存本地。
+- 联网后，自动推送至服务端，创建为未确认新版本，不覆盖任何现有数据。
+- 医生在界面上看到冲突提示，人工选择合并或采纳，保证数据完整性。
+
+### 7.4 备份与恢复
+- 数据库每日全备，Binlog持续异地备份。
+- RPO < 1分钟，RTO < 30分钟（考虑重启及业务验证时间）。
+
+---
+
+## 8. 脏现实兼容与数据治理
+
+### 8.1 数据质量治理 (integration服务内)
+- **字段标准化**：HIS来的性别（M/F/男/女）统一为代码；时间格式容错。
+- **异常检测**：发病时间晚于到院时间 → 标记可疑，弹窗提醒修正。
+- **缺失修复**：身份证号缺失的，用姓名+出生日期做MPI候选。
+- **患者合并**：定时任务根据规则合并重复患者档案，人工复核。
+
+### 8.2 老旧环境兼容
+- PAD端支持Android 6.0以上。
+- 医生工作站支持Chrome 80+，对于仅支持IE11的终端，提供精简只读查询页面（不参与绿道操作）。
+- 所有字体、按钮尺寸适配小屏及触摸操作。
+
+---
+
+## 9. 附录
+
+### 9.1 状态机完整转换表（含异常）
+
+（略，在3.2.1已描述，此处可附表格形式详细定义每个转换的前置条件、角色、超时）
+
+### 9.2 事件主题注册表
+
+（同5.2）
+
+### 9.3 评估量表清单
+
+（同第一版）
+
+---
+
+*文档编制：技术架构组*  
+*审核：医疗专家组·工程架构委员会*  
+*设计理念：外对接复杂，内部保持简单稳定；为真实医院而生，不为架构而架构。*

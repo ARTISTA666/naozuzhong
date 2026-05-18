@@ -1,0 +1,36 @@
+# === Maven ===
+target/
+*.class
+*.jar
+*.war
+
+# === IDE ===
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+*.swp
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Logs ===
+logs/
+*.log
+
+# === Config overrides ===
+application-local.yml
+application-dev.yml
+application-prod.yml
+
+# === Build ===
+*.zip
+*.tar.gz
+
+# === temp ===
+tmp/
+temp/
