@@ -19,6 +19,7 @@
         <module>core-clinical</module>
         <module>infrastructure</module>
         <module>integration</module>
+        <module>rehab-followup</module>
     </modules>
 
     <properties>
