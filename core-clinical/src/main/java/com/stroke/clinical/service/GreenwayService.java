@@ -2,6 +2,7 @@ package com.stroke.clinical.service;
 
 import com.stroke.clinical.dto.GreenwayVO;
 import com.stroke.clinical.dto.StateChangeRequest;
+import com.stroke.clinical.event.EventPublisher;
 import com.stroke.clinical.repository.mapper.GreenwayHistoryMapper;
 import com.stroke.clinical.repository.mapper.GreenwayMapper;
 import com.stroke.clinical.service.greenway.GreenwayStateMachine;
@@ -9,6 +10,9 @@ import com.stroke.common.BusinessException;
 import com.stroke.domain.entity.StrokeGreenway;
 import com.stroke.domain.entity.StrokeGreenwayHistory;
 import com.stroke.domain.enums.GreenwayStatus;
+import com.stroke.domain.event.CtTimeoutWarningEvent;
+import com.stroke.domain.event.DntTimeoutWarningEvent;
+import cn.hutool.core.util.IdUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -19,7 +23,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 绿道服务 — 对应设计文档 3.2 节
@@ -40,13 +43,16 @@ public class GreenwayService {
     private final GreenwayMapper greenwayMapper;
     private final GreenwayHistoryMapper historyMapper;
     private final GreenwayStateMachine stateMachine;
+    private final EventPublisher eventPublisher;
 
     public GreenwayService(GreenwayMapper greenwayMapper,
                            GreenwayHistoryMapper historyMapper,
-                           GreenwayStateMachine stateMachine) {
+                           GreenwayStateMachine stateMachine,
+                           EventPublisher eventPublisher) {
         this.greenwayMapper = greenwayMapper;
         this.historyMapper = historyMapper;
         this.stateMachine = stateMachine;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -176,13 +182,21 @@ public class GreenwayService {
     // ==================== 超时监控（设计文档 3.2.3 节） ====================
 
     private void checkTimeThresholds(StrokeGreenway greenway) {
+        LocalDateTime now = LocalDateTime.now();
+
         // CT 完成超时检查: door_to_ct_complete > 25分钟 → 黄灯
         if (greenway.getDoorTime() != null && greenway.getCtCompleteTime() != null) {
             long ctMinutes = Duration.between(greenway.getDoorTime(), greenway.getCtCompleteTime()).toMinutes();
             if (ctMinutes > CT_YELLOW_THRESHOLD) {
-                log.warn("【黄灯】Door-to-CT完成超过{}分钟: encounterId={}, 实际={}分钟",
-                        CT_YELLOW_THRESHOLD, greenway.getEncounterId(), ctMinutes);
-                // TODO: 通知模块 — 工作站弹窗提醒
+                CtTimeoutWarningEvent event = new CtTimeoutWarningEvent(
+                        IdUtil.fastSimpleUUID(),
+                        greenway.getEncounterId(),
+                        greenway.getPatientId(),
+                        ctMinutes,
+                        CT_YELLOW_THRESHOLD);
+                eventPublisher.publish(event);
+                log.warn("【事件发布】CT超时黄灯: encounterId={}, 实际={}分钟",
+                        greenway.getEncounterId(), ctMinutes);
             }
         }
 
@@ -190,9 +204,16 @@ public class GreenwayService {
         if (greenway.getDoorTime() != null && greenway.getNeedleTime() != null) {
             long dntMinutes = Duration.between(greenway.getDoorTime(), greenway.getNeedleTime()).toMinutes();
             if (dntMinutes > DNT_RED_THRESHOLD) {
-                log.warn("【红灯】Door-to-Needle超过{}分钟: encounterId={}, 实际={}分钟",
-                        DNT_RED_THRESHOLD, greenway.getEncounterId(), dntMinutes);
-                // TODO: 通知模块 — 主任/质控员站内信+PAD推送
+                DntTimeoutWarningEvent event = new DntTimeoutWarningEvent(
+                        IdUtil.fastSimpleUUID(),
+                        greenway.getEncounterId(),
+                        greenway.getPatientId(),
+                        dntMinutes,
+                        DNT_RED_THRESHOLD);
+                event.setCurrentStatus(greenway.getStatus());
+                eventPublisher.publish(event);
+                log.warn("【事件发布】DNT超时红灯: encounterId={}, 实际={}分钟",
+                        greenway.getEncounterId(), dntMinutes);
             }
         }
     }
