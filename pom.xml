@@ -20,6 +20,7 @@
         <module>infrastructure</module>
         <module>integration</module>
         <module>rehab-followup</module>
+        <module>analytics</module>
     </modules>
 
     <properties>

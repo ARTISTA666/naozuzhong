@@ -1,0 +1,25 @@
+server:
+  port: 8085
+  servlet:
+    context-path: /api/v3
+
+spring:
+  application:
+    name: analytics
+
+springdoc:
+  api-docs:
+    enabled: true
+
+knife4j:
+  enable: true
+  setting:
+    language: zh-CN
+
+# 数仓数据源（PostgreSQL，仅查询）
+# datasource:
+#   type: com.zaxxer.hikari.HikariDataSource
+#   driver-class-name: org.postgresql.Driver
+#   url: jdbc:postgresql://localhost:5432/stroke_dw
+#   username: reader
+#   password: reader
