@@ -37,6 +37,7 @@
         <!-- Database & Persistence -->
         <mysql-connector.version>8.0.33</mysql-connector.version>
         <mybatis-plus.version>3.5.5</mybatis-plus.version>
+        <mybatis.version>3.5.15</mybatis.version>
         <druid.version>1.2.22</druid.version>
 
         <!-- Commons -->
@@ -90,6 +91,11 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-extension</artifactId>
                 <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mybatis</groupId>
+                <artifactId>mybatis</artifactId>
+                <version>${mybatis.version}</version>
             </dependency>
 
             <!-- MySQL -->
