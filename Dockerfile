@@ -19,7 +19,7 @@ COPY analytics analytics/
 COPY docs docs/
 
 # 编译全部模块（跳过测试）
-RUN mvn clean package spring-boot:repackage -Dmaven.test.skip=true -B
+RUN mvn clean package -Dmaven.test.skip=true -B
 
 # ============================================================
 # Stage 2 — 运行环境
