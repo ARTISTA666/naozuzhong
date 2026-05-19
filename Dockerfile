@@ -7,22 +7,18 @@
 FROM maven:3.8-openjdk-11 AS build
 WORKDIR /build
 
-# 1. 先复制 POM 文件，利用 Docker 缓存加速依赖下载
+# 复制所有 POM 和源码
 COPY pom.xml .
-COPY common/pom.xml common/
-COPY core-domain/pom.xml core-domain/
-COPY core-clinical/pom.xml core-clinical/
-COPY infrastructure/pom.xml infrastructure/
-COPY integration/pom.xml integration/
-COPY rehab-followup/pom.xml rehab-followup/
-COPY analytics/pom.xml analytics/
+COPY common common/
+COPY core-domain core-domain/
+COPY core-clinical core-clinical/
+COPY infrastructure infrastructure/
+COPY integration integration/
+COPY rehab-followup rehab-followup/
+COPY analytics analytics/
+COPY docs docs/
 
-# 2. 下载依赖（单独层，源码不变时不重复下载）
-RUN mvn dependency:go-offline -B || true
-
-# 3. 复制全部源码并编译（修改时间戳确保缓存失效）
-RUN echo "build-$(date +%s)" > /dev/null
-COPY . .
+# 编译全部模块（跳过测试）
 RUN mvn clean install -DskipTests -B
 
 # ============================================================
@@ -31,7 +27,6 @@ RUN mvn clean install -DskipTests -B
 FROM eclipse-temurin:11-jre
 WORKDIR /app
 
-# 时区
 ENV TZ=Asia/Shanghai
 RUN ln -sf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -42,6 +37,5 @@ COPY --from=build /build/integration/target/integration-1.0.0-SNAPSHOT.jar      
 COPY --from=build /build/rehab-followup/target/rehab-followup-1.0.0-SNAPSHOT.jar  /app/rehab-followup.jar
 COPY --from=build /build/analytics/target/analytics-1.0.0-SNAPSHOT.jar            /app/analytics.jar
 
-# 默认不启动（由 docker-compose 指定具体服务）
 ENTRYPOINT ["java", "-jar"]
 CMD []
