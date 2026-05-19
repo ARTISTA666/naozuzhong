@@ -101,10 +101,36 @@ public class MpiMatchService {
     // ==================== 内部类型 ====================
 
     /** 患者记录（模拟） */
-    private record PatientRecord(Long id, String name, LocalDate birthDate, String idCard, String gender) {}
+    private static class PatientRecord {
+        final Long id;
+        final String name;
+        final LocalDate birthDate;
+        final String idCard;
+        final String gender;
+
+        PatientRecord(Long id, String name, LocalDate birthDate, String idCard, String gender) {
+            this.id = id;
+            this.name = name;
+            this.birthDate = birthDate;
+            this.idCard = idCard;
+            this.gender = gender;
+        }
+    }
 
     /** 匹配候选项 */
-    private record MatchCandidate(Long patientId, String matchRule, double confidence, String detail) {}
+    private static class MatchCandidate {
+        final Long patientId;
+        final String matchRule;
+        final double confidence;
+        final String detail;
+
+        MatchCandidate(Long patientId, String matchRule, double confidence, String detail) {
+            this.patientId = patientId;
+            this.matchRule = matchRule;
+            this.confidence = confidence;
+            this.detail = detail;
+        }
+    }
 
     /** 匹配结果 */
     public static class MatchResult {
