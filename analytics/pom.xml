@@ -48,6 +48,13 @@
                 <configuration>
                     <mainClass>com.stroke.analytics.AnalyticsApplication</mainClass>
                 </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
