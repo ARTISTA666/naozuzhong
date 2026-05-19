@@ -83,30 +83,13 @@ public class TimeoutEventHandler {
     // ==================== 通知模拟（后续替换为真实推送） ====================
 
     private void notifyDntTimeout(DntTimeoutWarningEvent event) {
-        log.info("""
-                ╔══════════════════ DNT超时告警 ══════════════════╗
-                ║  患者ID:    {}                                    \s
-                ║  就诊ID:    {}                                    \s
-                ║  DNT:       {}分钟 (阈值: {}分钟)                 \s
-                ║  状态:      {}                                    \s
-                ║  推送对象:  科室主任、质控员                        \s
-                ║  渠道:      站内信 + PAD推送                       \s
-                ╚══════════════════════════════════════════════════╝
-                """,
-                event.getPatientId(), event.getEncounterId(),
-                event.getDntMinutes(), event.getThreshold(),
-                event.getCurrentStatus());
+        log.warn("[DNT超时告警] encounterId={}, DNT={}分钟(阈值={}), 状态={}, 推送: 主任/质控员",
+                event.getEncounterId(), event.getDntMinutes(),
+                event.getThreshold(), event.getCurrentStatus());
     }
 
     private void notifyCtTimeout(CtTimeoutWarningEvent event) {
-        log.info("""
-                ╔══════════════════ CT超时提醒 ══════════════════╗
-                ║  就诊ID:    {}                                   \s
-                ║  Door-to-CT: {}分钟 (阈值: {}分钟)               \s
-                ║  推送对象:  当前值班医生                          \s
-                ║  渠道:      工作站弹窗提醒                        \s
-                ╚══════════════════════════════════════════════════╝
-                """,
+        log.warn("[CT超时提醒] encounterId={}, Door-to-CT={}分钟(阈值={}), 推送: 值班医生",
                 event.getEncounterId(), event.getCtMinutes(), event.getThreshold());
     }
 }

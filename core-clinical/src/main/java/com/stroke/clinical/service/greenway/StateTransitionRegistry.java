@@ -136,9 +136,9 @@ public class StateTransitionRegistry {
 
     // ==================== 注册方法 ====================
 
-    private void addTransition(GreenwayStatus from, GreenwayStatus to, TransitionRule rule) {
+    private void addTransition(GreenwayStatus from, GreenwayStatus to, TransitionRuleBuilder builder) {
         transitions.computeIfAbsent(from, k -> new ConcurrentHashMap<>())
-                .put(to, rule);
+                .put(to, builder.build());
     }
 
     // ==================== 查询方法 ====================
@@ -205,8 +205,8 @@ public class StateTransitionRegistry {
 
     // ==================== Builder ====================
 
-    private TransitionRule rule() {
-        return new TransitionRule();
+    private TransitionRuleBuilder rule() {
+        return new TransitionRuleBuilder();
     }
 
     /**

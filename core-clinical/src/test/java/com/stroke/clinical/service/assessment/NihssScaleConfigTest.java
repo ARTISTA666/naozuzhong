@@ -4,7 +4,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -31,7 +33,9 @@ class NihssScaleConfigTest {
     @Test
     @DisplayName("所有条目编码正确")
     void itemCodes() {
-        var codes = config.getAllItems().stream().map(NihssScaleConfig.NihssItemDef::getCode).toList();
+        List<String> codes = config.getAllItems().stream()
+                .map(NihssScaleConfig.NihssItemDef::getCode)
+                .collect(Collectors.toList());
         assertIterableEquals(
                 java.util.List.of("1a", "1b", "1c", "2", "3", "4", "5a", "5b",
                         "6a", "6b", "7", "8", "9", "10", "11"),

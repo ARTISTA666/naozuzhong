@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.OK)
     public Result<Void> handleBusinessException(BusinessException e, HttpServletRequest request) {
         log.warn("业务异常 [{}]: {}", e.getCode(), e.getMessage());
-        return Result.error(e.getCode(), e.getMessage())
+        return Result.<Void>error(e.getCode(), e.getMessage())
                 .traceId((String) request.getAttribute("traceId"));
     }
 
@@ -52,7 +52,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleException(Exception e, HttpServletRequest request) {
         log.error("系统异常: ", e);
-        return Result.error(500, "系统内部错误，请稍后重试")
+        return Result.<Void>error(500, "系统内部错误，请稍后重试")
                 .traceId((String) request.getAttribute("traceId"));
     }
 }
