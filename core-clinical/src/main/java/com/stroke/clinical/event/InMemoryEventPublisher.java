@@ -30,7 +30,7 @@ public class InMemoryEventPublisher implements EventPublisher {
     private final List<EventListener> globalListeners = new CopyOnWriteArrayList<>();
 
     @PostConstruct
-    void init() {
+    public void init() {
         log.info("事件发布器初始化: InMemoryEventPublisher（开发模式）");
     }
 

@@ -19,7 +19,7 @@ COPY analytics analytics/
 COPY docs docs/
 
 # 编译全部模块（跳过测试）
-RUN mvn clean install -DskipTests -B
+RUN mvn clean install -Dmaven.test.skip=true -B
 
 # ============================================================
 # Stage 2 — 运行环境

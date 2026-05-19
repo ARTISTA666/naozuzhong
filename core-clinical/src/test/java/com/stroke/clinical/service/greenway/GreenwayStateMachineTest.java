@@ -3,6 +3,7 @@ package com.stroke.clinical.service.greenway;
 import com.stroke.clinical.dto.StateChangeRequest;
 import com.stroke.common.BusinessException;
 import com.stroke.domain.entity.StrokeGreenway;
+import com.stroke.domain.entity.StrokeGreenwayHistory;
 import com.stroke.domain.enums.GreenwayStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
