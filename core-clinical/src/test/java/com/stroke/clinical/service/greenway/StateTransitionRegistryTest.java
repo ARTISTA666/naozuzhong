@@ -95,8 +95,10 @@ class StateTransitionRegistryTest {
                 GreenwayStatus.COMPLETED
         };
         for (int i = 0; i < path.length - 1; i++) {
-            assertTrue(registry.isValidTransition(path[i], path[i + 1]),
-                    () -> "路径不通: " + path[i] + " → " + path[i + 1]);
+            GreenwayStatus from = path[i];
+            GreenwayStatus to = path[i + 1];
+            assertTrue(registry.isValidTransition(from, to),
+                    () -> "路径不通: " + from + " → " + to);
         }
     }
 

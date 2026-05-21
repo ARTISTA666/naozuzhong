@@ -167,11 +167,12 @@ class AssessmentServiceTest {
         SubmitNihssRequest req = new SubmitNihssRequest();
         req.setEncounterId(100L);
         req.setPatientId(1000L);
-        req.setScores(Map.of(
-                "1a", 1, "1b", 0, "1c", 0,
-                "2", 0, "3", 0, "4", 2,
-                "5a", 3, "5b", 0, "6a", 0, "6b", 0,
-                "7", 0, "8", 1, "9", 0, "10", 0, "11", 0));
+        req.setScores(Map.ofEntries(
+                Map.entry("1a", 1), Map.entry("1b", 0), Map.entry("1c", 0),
+                Map.entry("2", 0), Map.entry("3", 0), Map.entry("4", 2),
+                Map.entry("5a", 3), Map.entry("5b", 0), Map.entry("6a", 0),
+                Map.entry("6b", 0), Map.entry("7", 0), Map.entry("8", 1),
+                Map.entry("9", 0), Map.entry("10", 0), Map.entry("11", 0)));
         req.setSource("ONLINE");
         req.setOperatorId("doc-001");
         req.setOperatorName("张医生");

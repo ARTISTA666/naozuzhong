@@ -151,7 +151,8 @@ class GreenwayStateMachineTest {
         assertTrue(stateMachine.isTerminal(GreenwayStatus.COMPLETED));
         assertTrue(stateMachine.isTerminal(GreenwayStatus.TREATMENT_ABORTED));
         assertTrue(stateMachine.isTerminal(GreenwayStatus.TRANSFERRED));
-        assertTrue(stateMachine.isTerminal(GreenwayStatus.THROMBOLYSIS_COMPLETED));
+        // THROMBOLYSIS_COMPLETED 可继续推进到 COMPLETED，不是终止态
+        assertFalse(stateMachine.isTerminal(GreenwayStatus.THROMBOLYSIS_COMPLETED));
         assertFalse(stateMachine.isTerminal(GreenwayStatus.CT_ORDERED));
         assertFalse(stateMachine.isTerminal(GreenwayStatus.AWAITING_DECISION));
     }

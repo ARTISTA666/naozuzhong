@@ -63,10 +63,12 @@ class NihssScaleConfigTest {
     @Test
     @DisplayName("计算总分为0")
     void calculateTotalZero() {
-        Map<String, Integer> scores = Map.of(
-                "1a", 0, "1b", 0, "1c", 0, "2", 0, "3", 0,
-                "4", 0, "5a", 0, "5b", 0, "6a", 0, "6b", 0,
-                "7", 0, "8", 0, "9", 0, "10", 0, "11", 0);
+        Map<String, Integer> scores = Map.ofEntries(
+                Map.entry("1a", 0), Map.entry("1b", 0), Map.entry("1c", 0),
+                Map.entry("2", 0), Map.entry("3", 0), Map.entry("4", 0),
+                Map.entry("5a", 0), Map.entry("5b", 0), Map.entry("6a", 0),
+                Map.entry("6b", 0), Map.entry("7", 0), Map.entry("8", 0),
+                Map.entry("9", 0), Map.entry("10", 0), Map.entry("11", 0));
         assertEquals(0, config.validateAndCalculate(scores));
     }
 

@@ -89,6 +89,7 @@ class GreenwayServiceTimeoutTest {
     @DisplayName("CT超25分钟 — 触发 CT_TIMEOUT_WARNING 事件")
     void ctExceededTriggersEvent() {
         StrokeGreenway g = createGreenway(100L);
+        g.setStatus(GreenwayStatus.CT_COMPLETED.name()); // 从CT_COMPLETED → AWAITING_DECISION
         g.setCtCompleteTime(g.getDoorTime().plusMinutes(35)); // CT = 35min > 25
 
         when(greenwayMapper.findByEncounterId(100L)).thenReturn(g);

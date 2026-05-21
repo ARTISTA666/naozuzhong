@@ -119,9 +119,12 @@ public class NihssScaleConfig {
             if (score == null) continue;
 
             if (!isValidScore(code, score)) {
-                throw new IllegalArgumentException(
-                        String.format("条目 %s 分数 %d 无效（允许范围: %d-%d）",
-                                code, score, getItem(code).minScore, getItem(code).maxScore));
+                NihssItemDef def = items.get(code);
+                String msg = (def == null)
+                        ? "未知条目: " + code
+                        : String.format("条目 %s 分数 %d 无效（允许范围: %d-%d）",
+                                code, score, def.minScore, def.maxScore);
+                throw new IllegalArgumentException(msg);
             }
             total += score;
         }
