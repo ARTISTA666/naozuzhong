@@ -7,6 +7,7 @@ import com.stroke.common.dto.RegisterRequest;
 import com.stroke.common.util.JwtUtil;
 import com.stroke.domain.entity.SysUser;
 import com.stroke.infra.mapper.SysUserMapper;
+import javax.annotation.PostConstruct;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,41 @@ public class AuthService {
 
     public AuthService(SysUserMapper userMapper) {
         this.userMapper = userMapper;
+    }
+
+    @PostConstruct
+    public void initDefaults() {
+        if (userMapper.selectCount(null) == 0) {
+            SysUser admin = new SysUser();
+            admin.setUsername("admin");
+            admin.setPassword(encoder.encode("admin123"));
+            admin.setDisplayName("系统管理员");
+            admin.setRole("ADMIN");
+            admin.setStatus("ACTIVE");
+            admin.setCreatedBy("SYSTEM");
+            admin.setCreatedTime(LocalDateTime.now());
+            userMapper.insert(admin);
+
+            SysUser doctor = new SysUser();
+            doctor.setUsername("doctor1");
+            doctor.setPassword(encoder.encode("admin123"));
+            doctor.setDisplayName("张医生");
+            doctor.setRole("DOCTOR");
+            doctor.setStatus("ACTIVE");
+            doctor.setCreatedBy("SYSTEM");
+            doctor.setCreatedTime(LocalDateTime.now());
+            userMapper.insert(doctor);
+
+            SysUser nurse = new SysUser();
+            nurse.setUsername("nurse1");
+            nurse.setPassword(encoder.encode("admin123"));
+            nurse.setDisplayName("李护士");
+            nurse.setRole("NURSE");
+            nurse.setStatus("ACTIVE");
+            nurse.setCreatedBy("SYSTEM");
+            nurse.setCreatedTime(LocalDateTime.now());
+            userMapper.insert(nurse);
+        }
     }
 
     public LoginResponse login(LoginRequest req) {

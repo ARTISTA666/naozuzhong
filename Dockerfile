@@ -7,6 +7,9 @@
 FROM maven:3.8-openjdk-11 AS build
 WORKDIR /build
 
+# Maven 阿里云镜像配置（国内网络加速）
+COPY .mvn/settings.xml /root/.m2/settings.xml
+
 # 复制所有 POM 和源码
 COPY pom.xml .
 COPY common common/

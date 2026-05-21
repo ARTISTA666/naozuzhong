@@ -23,8 +23,8 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v3/auth/login", "/api/v3/auth/register").permitAll()
-                .requestMatchers("/api/v3/health").permitAll()
+                .mvcMatchers("/api/v3/auth/login", "/api/v3/auth/register").permitAll()
+                .mvcMatchers("/api/v3/health").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

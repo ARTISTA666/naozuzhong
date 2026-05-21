@@ -109,17 +109,14 @@ CREATE TABLE IF NOT EXISTS sys_user (
     password_hash VARCHAR(256) NOT NULL, real_name VARCHAR(64),
     department VARCHAR(64), title VARCHAR(64), role_code VARCHAR(32), role_name VARCHAR(64),
     phone VARCHAR(32), email VARCHAR(128), status VARCHAR(16) DEFAULT 'ACTIVE',
-    is_deleted TINYINT DEFAULT 0, created_by VARCHAR(64) NOT NULL, created_time DATETIME NOT NULL,
+    last_login_time DATETIME, is_deleted TINYINT DEFAULT 0,
+    created_by VARCHAR(64) NOT NULL, created_time DATETIME NOT NULL,
     updated_by VARCHAR(64), updated_time DATETIME, version INT DEFAULT 0, trace_id VARCHAR(64),
     UNIQUE INDEX idx_username (username), INDEX idx_department (department), INDEX idx_role (role_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统用户';
 
--- 默认管理员账号 (密码: admin123)
-INSERT IGNORE INTO sys_user (username, password_hash, real_name, role_code, role_name, department, status, created_by, created_time)
-VALUES ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '系统管理员', 'ADMIN', '系统管理员', '信息科', 'ACTIVE', 'SYSTEM', NOW()),
-       ('doctor1', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '张医生', 'DOCTOR', '神经内科医生', '神经内科', 'ACTIVE', 'SYSTEM', NOW()),
-       ('nurse1', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '李护士', 'NURSE', '急诊护士', '急诊科', 'ACTIVE', 'SYSTEM', NOW()),
-       ('tech1', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '王技师', 'TECHNICIAN', '放射科技师', '影像科', 'ACTIVE', 'SYSTEM', NOW());
+-- 默认用户由 AuthService.initDefaults() 应用启动时创建
+-- INSERT IGNORE INTO sys_user ...
 
 CREATE TABLE IF NOT EXISTS notification (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -146,10 +143,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='审计日志';
 
 -- 测试用户
-INSERT INTO sys_user (username, password_hash, real_name, department, title, role_code, role_name, status, created_by, created_time)
-VALUES ('admin', '$2a$10$dummy', '管理员', '神经内科', '主任医师', 'ADMIN', '系统管理员', 'ACTIVE', 'SYSTEM', NOW()),
-       ('doctor1', '$2a$10$dummy', '张医生', '神经内科', '主治医师', 'DOCTOR', '医生', 'ACTIVE', 'SYSTEM', NOW()),
-       ('nurse1', '$2a$10$dummy', '李护士', '急诊科', '主管护师', 'NURSE', '护士', 'ACTIVE', 'SYSTEM', NOW());
+-- 默认用户见上方 INSERT IGNORE（已包含完整角色）
 
 -- ==================== stroke_rehab ====================
 

@@ -6,7 +6,7 @@ import com.stroke.common.dto.LoginResponse;
 import com.stroke.common.dto.RegisterRequest;
 import com.stroke.infra.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.validation.Valid;
+import javax.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -27,7 +27,7 @@ public class AuthController {
 
     @PostMapping("/register")
     @Operation(summary = "注册")
-    public Result<Void> register(@Valid @RequestBody RegisterRequest req) {
+    public Result<String> register(@Valid @RequestBody RegisterRequest req) {
         authService.register(req);
         return Result.success("注册成功");
     }

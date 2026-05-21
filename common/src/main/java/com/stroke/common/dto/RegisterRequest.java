@@ -1,6 +1,6 @@
 package com.stroke.common.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import javax.validation.constraints.NotBlank;
 
 /** 注册请求 */
 public class RegisterRequest {
