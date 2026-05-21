@@ -38,8 +38,7 @@ public enum GreenwayStatus {
     public boolean isTerminal() {
         return this == TREATMENT_ABORTED
                 || this == TRANSFERRED
-                || this == COMPLETED
-                || this == THROMBOLYSIS_COMPLETED;
+                || this == COMPLETED;
     }
 
     /**
