@@ -34,3 +34,7 @@ application-prod.yml
 # === temp ===
 tmp/
 temp/
+
+# === Environment ===
+.env
+mysql-data/

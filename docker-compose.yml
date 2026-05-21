@@ -14,7 +14,7 @@ services:
     container_name: stroke-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       TZ: Asia/Shanghai
     ports:
       - "3306:3306"
@@ -56,8 +56,9 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/stroke_clinical?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       SPRING_REDIS_HOST: redis
+      JWT_SECRET: ${JWT_SECRET:-stroke-dev-jwt-secret-key-2026-must-be-256-bit}
     command: ["/app/core-clinical.jar"]
 
   infrastructure:
@@ -72,7 +73,8 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/stroke_infra?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      JWT_SECRET: ${JWT_SECRET:-stroke-dev-jwt-secret-key-2026-must-be-256-bit}
     command: ["/app/infrastructure.jar"]
 
   integration:
@@ -87,7 +89,7 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/stroke_integration?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
     command: ["/app/integration.jar"]
 
   rehab-followup:
