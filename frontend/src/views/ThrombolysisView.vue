@@ -3,7 +3,7 @@
     <el-col :span="12">
       <el-card>
         <template #header><span>溶栓禁忌检查</span></template>
-        <el-form :model="form" label-width="140px">
+        <el-form ref="formRef" :model="form" :rules="formRules" label-width="140px">
           <el-divider>时间窗</el-divider>
           <el-form-item label="发病时间">
             <el-date-picker v-model="form.onsetTime" type="datetime" placeholder="选择发病时间" style="width:100%" />
@@ -71,15 +71,21 @@
 import { ref, reactive } from 'vue'
 import { decisionApi } from '../api/index.js'
 
+const formRef = ref(null)
 const form = reactive({
   onsetTime: null, inr: null, plateletCount: null, bloodGlucose: null,
   systolicBp: null, diastolicBp: null,
   recentMajorSurgery: false, intracranialHemorrhageHistory: false
 })
+const formRules = {
+  onsetTime: [{ required: true, message: '请选择发病时间', trigger: 'change' }]
+}
 const result = ref(null)
 const loading = ref(false)
 
 async function check() {
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) { loading.value = false; return }
   loading.value = true
   try {
     const res = await decisionApi.checkThrombolysis({
