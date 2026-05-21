@@ -20,30 +20,18 @@
       </el-col>
     </el-row>
 
-    <!-- 趋势图 (使用简单表格替代echarts以减少依赖) -->
+    <!-- 图表行 -->
     <el-row :gutter="12">
       <el-col :span="12">
         <el-card>
           <template #header><span>DNT 趋势（按天）</span></template>
-          <el-table :data="dntTrend" stripe height="300" size="small">
-            <el-table-column prop="date" label="日期" />
-            <el-table-column prop="dntMedian" label="DNT中位数" />
-            <el-table-column prop="dntP95" label="DNT P95" />
-          </el-table>
+          <v-chart :option="dntChartOption" style="height:320px" autoresize />
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card>
           <template #header><span>月溶栓率</span></template>
-          <el-table :data="monthlyRate" stripe height="300" size="small">
-            <el-table-column prop="month" label="月份" />
-            <el-table-column prop="thrombolysisRate" label="溶栓率(%)">
-              <template #default="{ row }">{{ row.thrombolysisRate }}%</template>
-            </el-table-column>
-            <el-table-column prop="dntTimeoutRate" label="DNT超时率(%)">
-              <template #default="{ row }">{{ row.dntTimeoutRate }}%</template>
-            </el-table-column>
-          </el-table>
+          <v-chart :option="monthlyChartOption" style="height:320px" autoresize />
         </el-card>
       </el-col>
     </el-row>
@@ -51,8 +39,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { LineChart, BarChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import VChart from 'vue-echarts'
 import { dashboardApi } from '../api/index.js'
+
+use([CanvasRenderer, LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent])
 
 const indicators = ref([])
 const dntTrend = ref([])
@@ -70,6 +65,34 @@ onMounted(async () => {
     monthlyRate.value = rateRes.data || []
   } catch (e) { console.error(e) }
 })
+
+const dntChartOption = computed(() => ({
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['DNT中位数', 'DNT P95'] },
+  grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+  xAxis: { type: 'category', data: dntTrend.value.map(d => d.date || ''), axisLabel: { rotate: 30 } },
+  yAxis: { type: 'value', name: '分钟' },
+  series: [
+    { name: 'DNT中位数', type: 'line', data: dntTrend.value.map(d => d.dntMedian || 0), smooth: true,
+      itemStyle: { color: '#409eff' }, areaStyle: { color: 'rgba(64,158,255,0.1)' } },
+    { name: 'DNT P95', type: 'line', data: dntTrend.value.map(d => d.dntP95 || 0), smooth: true,
+      itemStyle: { color: '#f56c6c' }, areaStyle: { color: 'rgba(245,108,108,0.1)' } }
+  ]
+}))
+
+const monthlyChartOption = computed(() => ({
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['溶栓率', 'DNT超时率'] },
+  grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+  xAxis: { type: 'category', data: monthlyRate.value.map(d => d.month || '') },
+  yAxis: { type: 'value', name: '百分比', axisLabel: { formatter: '{value}%' } },
+  series: [
+    { name: '溶栓率', type: 'bar', data: monthlyRate.value.map(d => d.thrombolysisRate || 0),
+      itemStyle: { color: '#67c23a', borderRadius: [4, 4, 0, 0] } },
+    { name: 'DNT超时率', type: 'bar', data: monthlyRate.value.map(d => d.dntTimeoutRate || 0),
+      itemStyle: { color: '#e6a23c', borderRadius: [4, 4, 0, 0] } }
+  ]
+}))
 
 function formatValue(value, unit) {
   if (value === undefined || value === null) return '-'

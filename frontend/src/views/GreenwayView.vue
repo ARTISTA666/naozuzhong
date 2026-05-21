@@ -58,14 +58,18 @@
 
     <!-- 创建绿道对话框 -->
     <el-dialog v-model="showCreateDialog" title="创建绿道" width="500px">
-      <el-form :model="createForm" label-width="100px">
-        <el-form-item label="患者ID"><el-input v-model="createForm.patientId" /></el-form-item>
-        <el-form-item label="就诊ID"><el-input v-model="createForm.encounterId" /></el-form-item>
-        <el-form-item label="到院时间">
-          <el-date-picker v-model="createForm.doorTime" type="datetime" placeholder="选择到院时间" />
+      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="100px">
+        <el-form-item label="患者ID" prop="patientId">
+          <el-input v-model="createForm.patientId" placeholder="输入患者ID（数字）" />
         </el-form-item>
-        <el-form-item label="发病时间">
-          <el-date-picker v-model="createForm.onsetTime" type="datetime" placeholder="选择发病时间" />
+        <el-form-item label="就诊ID" prop="encounterId">
+          <el-input v-model="createForm.encounterId" placeholder="输入就诊ID（数字）" />
+        </el-form-item>
+        <el-form-item label="到院时间" prop="doorTime">
+          <el-date-picker v-model="createForm.doorTime" type="datetime" placeholder="选择到院时间" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="发病时间" prop="onsetTime">
+          <el-date-picker v-model="createForm.onsetTime" type="datetime" placeholder="选择发病时间" style="width:100%" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -102,7 +106,16 @@ const queryForm = reactive({ encounterId: '' })
 const greenway = ref(null)
 const history = ref([])
 const showCreateDialog = ref(false)
+const createFormRef = ref(null)
 const createForm = reactive({ patientId: '', encounterId: '', doorTime: '', onsetTime: '' })
+const createRules = reactive({
+  patientId: [{ required: true, message: '请输入患者ID', trigger: 'blur' },
+    { pattern: /^\d+$/, message: '患者ID必须为数字', trigger: 'blur' }],
+  encounterId: [{ required: true, message: '请输入就诊ID', trigger: 'blur' },
+    { pattern: /^\d+$/, message: '就诊ID必须为数字', trigger: 'blur' }],
+  doorTime: [{ required: true, message: '请选择到院时间', trigger: 'change' }],
+  onsetTime: [{ required: true, message: '请选择发病时间', trigger: 'change' }]
+})
 const showStateDialog = ref(false)
 const targetState = ref('')
 const stateRemark = ref('')
@@ -127,6 +140,8 @@ async function loadGreenway() {
 }
 
 async function createGreenway() {
+  const valid = await createFormRef.value.validate().catch(() => false)
+  if (!valid) return
   try {
     await greenwayApi.create({
       patientId: parseInt(createForm.patientId),
