@@ -114,6 +114,13 @@ CREATE TABLE IF NOT EXISTS sys_user (
     UNIQUE INDEX idx_username (username), INDEX idx_department (department), INDEX idx_role (role_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统用户';
 
+-- 默认管理员账号 (密码: admin123)
+INSERT IGNORE INTO sys_user (username, password_hash, real_name, role_code, role_name, department, status, created_by, created_time)
+VALUES ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '系统管理员', 'ADMIN', '系统管理员', '信息科', 'ACTIVE', 'SYSTEM', NOW()),
+       ('doctor1', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '张医生', 'DOCTOR', '神经内科医生', '神经内科', 'ACTIVE', 'SYSTEM', NOW()),
+       ('nurse1', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '李护士', 'NURSE', '急诊护士', '急诊科', 'ACTIVE', 'SYSTEM', NOW()),
+       ('tech1', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '王技师', 'TECHNICIAN', '放射科技师', '影像科', 'ACTIVE', 'SYSTEM', NOW());
+
 CREATE TABLE IF NOT EXISTS notification (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     notification_type VARCHAR(32), title VARCHAR(128), content TEXT,
