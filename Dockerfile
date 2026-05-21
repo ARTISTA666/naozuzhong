@@ -12,14 +12,16 @@ COPY .mvn/settings.xml /root/.m2/settings.xml
 
 # --- 第2层：仅 POM 文件（不变则缓存命中） ---
 COPY pom.xml ./
-RUN mvn dependency:resolve -pl common -q -B 2>/dev/null || true
+RUN mkdir -p common/src/main/java core-domain/src/main/java \
+    && mkdir -p core-clinical infrastructure integration rehab-followup analytics \
+    && mvn dependency:resolve -q -B 2>/dev/null || true
 
-# --- 第3层：domain + common（最常被依赖） ---
+# --- 第3层：domain + common 源码编译（最常被依赖） ---
 COPY common common/
 COPY core-domain core-domain/
 RUN mvn compile -pl common,core-domain -q -B 2>/dev/null || true
 
-# --- 第4层：全部源码 + 编译 ---
+# --- 第4层：全部源码 + 最终编译 ---
 COPY . ./
 RUN mvn clean package -Dmaven.test.skip=true -B
 
