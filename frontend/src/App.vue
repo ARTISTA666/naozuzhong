@@ -62,8 +62,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { connectWebSocket, disconnectWebSocket } from './api/websocket.js'
+
 const route = useRoute()
 const router = useRouter()
 
@@ -71,8 +73,19 @@ const user = computed(() => {
   try { return JSON.parse(localStorage.getItem('user')) } catch { return null }
 })
 
+onMounted(() => {
+  if (localStorage.getItem('token')) {
+    connectWebSocket()
+  }
+})
+
+onUnmounted(() => {
+  disconnectWebSocket()
+})
+
 function handleCommand(cmd) {
   if (cmd === 'logout') {
+    disconnectWebSocket()
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     router.push('/login')
