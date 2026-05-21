@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { ElMessage } from 'element-plus'
 
 const BASE_URL = '/api'
 
@@ -8,14 +9,37 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 })
 
+// 请求拦截器：自动附加 Token
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 // 响应拦截器：统一错误处理
 api.interceptors.response.use(
   res => res.data,
   err => {
-    console.error('API Error:', err)
+    const data = err.response?.data
+    const msg = data?.message || err.message || '请求失败'
+    if (err.response?.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.href = '/login'
+      return Promise.reject(err)
+    }
+    ElMessage.error(msg)
     return Promise.reject(err)
   }
 )
+
+// ==================== 认证 API ====================
+export const authApi = {
+  login(data) { return api.post('/v3/auth/login', data) },
+  register(data) { return api.post('/v3/auth/register', data) }
+}
 
 // ==================== 绿道 API ====================
 export const greenwayApi = {
