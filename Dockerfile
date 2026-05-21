@@ -1,27 +1,26 @@
 # ============================================================
 # Docker 多阶段构建 — 脑卒中疾病管理医疗系统
-# Stage 1: Maven 编译所有模块
+# Stage 1: Maven 编译所有模块（优化分层缓存）
 # Stage 2: JRE 运行环境
 # ============================================================
 
 FROM maven:3.8-openjdk-11 AS build
 WORKDIR /build
 
-# Maven 阿里云镜像配置（国内网络加速）
+# --- 第1层：阿里云 Maven 镜像配置 ---
 COPY .mvn/settings.xml /root/.m2/settings.xml
 
-# 复制所有 POM 和源码
-COPY pom.xml .
+# --- 第2层：仅 POM 文件（不变则缓存命中） ---
+COPY pom.xml ./
+RUN mvn dependency:resolve -pl common -q -B 2>/dev/null || true
+
+# --- 第3层：domain + common（最常被依赖） ---
 COPY common common/
 COPY core-domain core-domain/
-COPY core-clinical core-clinical/
-COPY infrastructure infrastructure/
-COPY integration integration/
-COPY rehab-followup rehab-followup/
-COPY analytics analytics/
-COPY docs docs/
+RUN mvn compile -pl common,core-domain -q -B 2>/dev/null || true
 
-# 编译全部模块（跳过测试）
+# --- 第4层：全部源码 + 编译 ---
+COPY . ./
 RUN mvn clean package -Dmaven.test.skip=true -B
 
 # ============================================================

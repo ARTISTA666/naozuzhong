@@ -1,0 +1,33 @@
+# ============================================================
+# .dockerignore — 加速 Docker 构建，排除开发/CI 产物
+# ============================================================
+
+# === 版本控制 ===
+.git/
+.gitignore
+
+# === 构建产物 ===
+**/target/
+**/build/
+frontend/dist/
+
+# === 依赖缓存 ===
+node_modules/
+**/node_modules/
+frontend/node_modules/
+
+# === 本地数据 ===
+mysql-data/
+*.log
+build.log
+test-result.txt
+
+# === 环境配置 ===
+.env
+.env.local
+
+# === IDE ===
+.idea/
+.vscode/
+*.iml
+*.swp
