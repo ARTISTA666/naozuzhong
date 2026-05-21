@@ -62,7 +62,10 @@ public class AssessmentService {
         Assessment latestActive = assessmentMapper.findLatestNihss(request.getEncounterId());
         if (latestActive != null) {
             latestActive.setRecordStatus("superseded");
-            assessmentMapper.updateById(latestActive);
+            // 用 UpdateWrapper 绕过乐观锁（自定义SQL查询不携带 version）
+            assessmentMapper.update(latestActive,
+                    new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<Assessment>()
+                            .eq("id", latestActive.getId()));
         }
 
         // 4. 创建新评估主记录
