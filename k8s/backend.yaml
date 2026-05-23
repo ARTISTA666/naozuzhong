@@ -1,0 +1,210 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stroke-platform
+  namespace: stroke
+  labels: { app: stroke-platform }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: stroke-platform }
+  template:
+    metadata:
+      labels: { app: stroke-platform }
+    spec:
+      containers:
+        - name: clinical
+          image: stroke-platform:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://stroke-db:3306/stroke_clinical?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "root"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stroke-secrets
+                  key: mysql-root-password
+            - name: SPRING_REDIS_HOST
+              value: "stroke-redis"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: stroke-secrets
+                  key: jwt-secret
+          command: ["java", "-jar", "/app/core-clinical.jar"]
+          readinessProbe:
+            httpGet:
+              path: /api/v3/health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits:   { cpu: "1000m", memory: "1Gi" }
+        - name: infra
+          image: stroke-platform:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://stroke-db:3306/stroke_infra?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "root"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stroke-secrets
+                  key: mysql-root-password
+            - name: SPRING_REDIS_HOST
+              value: "stroke-redis"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: stroke-secrets
+                  key: jwt-secret
+          command: ["java", "-jar", "/app/infrastructure.jar"]
+          readinessProbe:
+            httpGet:
+              path: /api/v3/health
+              port: 8082
+            initialDelaySeconds: 30
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits:   { cpu: "1000m", memory: "1Gi" }
+        - name: rehab
+          image: stroke-platform:latest
+          ports:
+            - containerPort: 8084
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://stroke-db:3306/stroke_rehab?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "root"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stroke-secrets
+                  key: mysql-root-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: stroke-secrets
+                  key: jwt-secret
+          command: ["java", "-jar", "/app/rehab-followup.jar"]
+          resources:
+            requests: { cpu: "200m", memory: "256Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+        - name: analytics
+          image: stroke-platform:latest
+          ports:
+            - containerPort: 8085
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://stroke-db:3306/stroke_analytics?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "root"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stroke-secrets
+                  key: mysql-root-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: stroke-secrets
+                  key: jwt-secret
+          command: ["java", "-jar", "/app/analytics.jar"]
+          resources:
+            requests: { cpu: "200m", memory: "256Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+        - name: integration
+          image: stroke-platform:latest
+          ports:
+            - containerPort: 8083
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://stroke-db:3306/stroke_integration?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "root"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stroke-secrets
+                  key: mysql-root-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: stroke-secrets
+                  key: jwt-secret
+          command: ["java", "-jar", "/app/integration.jar"]
+          resources:
+            requests: { cpu: "200m", memory: "256Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stroke-clinical
+  namespace: stroke
+spec:
+  selector:
+    matchLabels: { app: stroke-platform }
+  ports:
+    - name: clinical
+      port: 8081
+      targetPort: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stroke-infra
+  namespace: stroke
+spec:
+  selector:
+    matchLabels: { app: stroke-platform }
+  ports:
+    - name: infra
+      port: 8082
+      targetPort: 8082
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stroke-rehab
+  namespace: stroke
+spec:
+  selector:
+    matchLabels: { app: stroke-platform }
+  ports:
+    - name: rehab
+      port: 8084
+      targetPort: 8084
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stroke-analytics
+  namespace: stroke
+spec:
+  selector:
+    matchLabels: { app: stroke-platform }
+  ports:
+    - name: analytics
+      port: 8085
+      targetPort: 8085
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stroke-integration
+  namespace: stroke
+spec:
+  selector:
+    matchLabels: { app: stroke-platform }
+  ports:
+    - name: integration
+      port: 8083
+      targetPort: 8083

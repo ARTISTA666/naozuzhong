@@ -11,8 +11,8 @@
 | **core-clinical** | 8081 | 患者主索引、就诊、绿道状态机、量表评定、溶栓/取栓 |
 | **infrastructure** | 8082 | 用户权限、审计、通知、CDS规则引擎 |
 | **integration** | 8083 | HIS/LIS/PACS对接、FHIR网关、数据标准化 |
-| **rehab-followup** | — | 康复评定、随访、二级预防（后续开发） |
-| **analytics** | — | BI报表、质控指标、科研数据导出（后续开发） |
+| **rehab-followup** | 8084 | 康复评定、随访、二级预防 |
+| **analytics** | 8085 | BI报表、质控指标、科研数据导出 |
 
 ## 技术栈
 

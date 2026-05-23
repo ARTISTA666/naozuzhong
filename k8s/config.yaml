@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stroke
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stroke-secrets
+  namespace: stroke
+type: Opaque
+stringData:
+  mysql-root-password: "root"
+  jwt-secret: "stroke-dev-jwt-secret-key-2026-must-be-256-bit"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stroke-db-pvc
+  namespace: stroke
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stroke-init-sql
+  namespace: stroke
+data:
+  init.sql: |
+    -- stroke_infra
+    CREATE DATABASE IF NOT EXISTS stroke_infra DEFAULT CHARSET utf8mb4;
+    -- stroke_clinical
+    CREATE DATABASE IF NOT EXISTS stroke_clinical DEFAULT CHARSET utf8mb4;
+    -- stroke_integration
+    CREATE DATABASE IF NOT EXISTS stroke_integration DEFAULT CHARSET utf8mb4;
+    -- stroke_rehab
+    CREATE DATABASE IF NOT EXISTS stroke_rehab DEFAULT CHARSET utf8mb4;
+    -- stroke_analytics
+    CREATE DATABASE IF NOT EXISTS stroke_analytics DEFAULT CHARSET utf8mb4;
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stroke-gateway-config
+  namespace: stroke
+data:
+  default.conf: |
+    upstream clinical { server stroke-clinical:8081; }
+    upstream infra { server stroke-infra:8082; }
+    upstream integration { server stroke-integration:8083; }
+    upstream rehab { server stroke-rehab:8084; }
+    upstream analytics { server stroke-analytics:8085; }
+
+    server {
+      listen 8080;
+      location /api/v3/auth/ { proxy_pass http://infra; }
+      location /api/v3/greenway { proxy_pass http://clinical; }
+      location /api/v3/decisions { proxy_pass http://clinical; }
+      location /api/v3/assessments { proxy_pass http://clinical; }
+      location /api/v3/ws/alerts {
+        proxy_pass http://clinical;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 3600s;
+      }
+      location /api/v3/dashboard { proxy_pass http://analytics; }
+      location /api/v3/followup { proxy_pass http://rehab; }
+      location /api/v3/integration { proxy_pass http://integration; }
+      location /api/v3/health { proxy_pass http://clinical; }
+    }

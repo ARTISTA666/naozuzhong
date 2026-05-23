@@ -5,6 +5,11 @@ spring:
   application:
     name: infrastructure
 
+# 使用自己的 Spring Security JwtAuthFilter，禁用共享 JWT 过滤器
+stroke:
+  auth:
+    shared-jwt-filter: false
+
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver

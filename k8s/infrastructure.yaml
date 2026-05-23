@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stroke-db
+  namespace: stroke
+  labels: { app: stroke-db }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: stroke-db }
+  template:
+    metadata:
+      labels: { app: stroke-db }
+    spec:
+      containers:
+        - name: db
+          image: mariadb:10.11
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stroke-secrets
+                  key: mysql-root-password
+            - name: MYSQL_DATABASE
+              value: stroke_clinical
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["mariadb-admin", "ping", "-uroot", "-p$(MYSQL_ROOT_PASSWORD)"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits:   { cpu: "1000m", memory: "1Gi" }
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: stroke-db-pvc
+        - name: init-sql
+          configMap:
+            name: stroke-init-sql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stroke-db
+  namespace: stroke
+spec:
+  selector: { app: stroke-db }
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stroke-redis
+  namespace: stroke
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: stroke-redis }
+  template:
+    metadata:
+      labels: { app: stroke-redis }
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "256Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stroke-redis
+  namespace: stroke
+spec:
+  selector: { app: stroke-redis }
+  ports:
+    - port: 6379
+      targetPort: 6379
